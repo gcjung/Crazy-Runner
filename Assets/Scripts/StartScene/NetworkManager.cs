@@ -96,25 +96,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
         sceneEffect = FindObjectOfType<SceneConvertEffect>();
     }
 
-    void Update()       // 테스트용
-    {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            Info();
-            Debug.Log("난 방장인가 ? " + PhotonNetwork.IsMasterClient);
-        }
-        if (Input.GetKeyDown(KeyCode.A))
-        {
-            for (int i = 0; i < 5; i++)
-            {
-                if (playerCharacters[i] == null)
-                    continue;
-                Debug.Log(i.ToString() + "번째 , 캐릭이름 : " + playerCharacters[i].name);
-            }
-        }
-        //networkStateText.text = PhotonNetwork.NetworkClientState.ToString();
-    }
-
     #region #START# 1. 서버연결 (disconnect)
     public void OnDisconnectPanel()
     {
@@ -125,17 +106,13 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
         PhotonNetwork.GameVersion = gameVersion;    // 게임 버전설정 (다를 시 안만남)
         GameManager.instance.nickName = nickNameInput.text;
         PhotonNetwork.ConnectUsingSettings();
-        //sceneEffect.StartFadeInOut(0.8f);
     }
     public override void OnConnectedToMaster()      // 서버접속시 실행되는 콜백함수 (방에서 나갔을때 이 함수부터 실행됨)
     {
-        //Debug.Log("OnConnectedToMaster 실행");
         PhotonNetwork.JoinLobby();                  // 서버접속시 바로 디폴트로비로 접속
     }
     public override void OnJoinedLobby()            // 로비접속시 실행되는 콜백함수
     {
-        //Debug.Log("OnJoinedLobby 실행");
-
         PhotonNetwork.LocalPlayer.NickName = GameManager.instance.nickName;            // 서버 내 닉네임 설정
         myNicknameText.text = GameManager.instance.nickName;                           // 로비화면에서 닉네임 표시
         //networkStateText.text = PhotonNetwork.NetworkClientState.ToString();
@@ -706,188 +683,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     }
 
 
-    [ContextMenu("정보")]
-    void Info()
-    {
-        if (PhotonNetwork.InRoom)
-        {
-            print("현재 포톤 닉네임 : " + PhotonNetwork.LocalPlayer);
-            print("현재 방 이름 : " + PhotonNetwork.CurrentRoom.Name);
-            print("현재 방 인원수 : " + PhotonNetwork.CurrentRoom.PlayerCount);
-            print("현재 방 최대인원수 : " + PhotonNetwork.CurrentRoom.MaxPlayers);
-            string playerStr = "방에 있는 플레이어 목록 : ";
-            for (int i = 0; i < PhotonNetwork.PlayerList.Length; i++) playerStr += PhotonNetwork.PlayerList[i].NickName + ", ";
-            print(playerStr);
-        }
-        else
-        {
-            print("현재 포톤 닉네임 : " + PhotonNetwork.LocalPlayer);
-            print("접속한 인원 수 : " + PhotonNetwork.CountOfPlayers);
-            print("방 개수 : " + PhotonNetwork.CountOfRooms);
-            print("모든 방에 있는 인원 수 : " + PhotonNetwork.CountOfPlayersInRooms);
-            print("로비에 있는지? : " + PhotonNetwork.InLobby);
-            print("연결됐는지? : " + PhotonNetwork.IsConnected);
-        }
-    }
+
 
 }
-
-//public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
-//{
-
-//    if (stream.IsWriting && PhotonNetwork.InRoom)
-//    {
-//        stream.SendNext(readyPlayerNumber);
-//        Debug.Log("동기화 데이터 전송");
-//    }
-//    else
-//    {
-//        readyPlayerNumber = (int)stream.ReceiveNext();
-//        Debug.Log("동기화 데이터 수신");
-//    }
-
-//}
-
-//public override void OnJoinedRoom()         // 방을 성공적으로 참가하면 실행되는 콜백함수
-//{
-//    testNowState.text = "내 액터넘버: " + PhotonNetwork.LocalPlayer.ActorNumber.ToString();
-
-//    //for (int i = 0; i < MAX_PLAYER_NUM; i++)                            // 방 처음들어갔을 시, 방의 프로퍼티를 받아서
-//    //{
-//    //    int userSlotState = GetRoomProperties(i);
-//    //    if (userSlotState == (int)USER_SlOT_STATE.CLOSE)             // Close 슬롯일시, 닫힌표시(X표시) ON
-//    //    {
-//    //        closeSlot[i].SetActive(true);
-//    //    }
-//    //    else if (userSlotState == (int)USER_SlOT_STATE.OPEN)         // OPEN 슬롯일시, 닫힌표시(X표시) OFF
-//    //    {
-//    //        closeSlot[i].SetActive(false);
-//    //    }
-
-//    //}
-
-//    ResetRoomSetting();                                                 // 방만들기설정하다가 방들어왔을시 세팅을 초기화해줌
-//    RoomRenewal();
-
-//    OffAllPanel();
-//    roomPanel.SetActive(true);
-//}
-
-
-
-//void SendEvent()
-//{
-
-//    object[] content = new object[] { playerUIList[0], playerUIList[1], playerUIList[2], playerUIList[3], playerUIList[4]};
-//    PhotonNetwork.RaiseEvent(0, content, RaiseEventOptions.Default, SendOptions.SendUnreliable);
-//    Debug.Log("이벤트 전송");
-//}
-//public void OnEvent(EventData photonEvent)
-//{
-//    Debug.Log("이벤트 수신");
-//    if (photonEvent.Code == 0)
-//    {
-//        Debug.Log("이벤트 수신 코드 0!!");
-//        object[] data = (object[])photonEvent.CustomData;
-//        for (int i = 0; i < data.Length; i++) playerUIList[i] = (PlayerUIList)data[i];
-//        //for (int i = 0; i < MAX_PLAYER_NUM; i++)
-//        //{
-//        //    Debug.Log(i + "번째, 스테이트 : " + playerUIList[i].userPanelState);
-//        //    if (playerUIList[i].player != null)
-//        //        Debug.Log(i + "번째, 닉네임 : " + playerUIList[i].player.NickName);
-//        //}
-//    }
-//}
-
-//private void RoomRenewal()
-//{
-//    for (int i = 0; i < PhotonNetwork.PlayerList.Length; i++)
-//        userNickname[i].text = PhotonNetwork.PlayerList[i].NickName;
-//    //for (int i = PhotonNetwork.PlayerList.Length; i < MAX_USER_NUM; i++)
-//    //    userNickname[i].text = "";
-
-
-//}
-
-
-//public override void OnPlayerEnteredRoom(Player newPlayer)
-//{
-//    RoomRenewal();
-//    //ChatRPC("<color=yellow>" + newPlayer.NickName + "님이 참가하셨습니다</color>");
-//    for (int i = 0; i < playerList.Length; i++)
-//    {
-//        if (playerList[i] == null)
-//        {
-//            playerList[i] = newPlayer;
-//            break;
-//        }
-//    }
-//    Debug.Log("나 참가");
-//    //photonview.RPC("PlayerListSync", RpcTarget.All, playerList);
-//    Debug.Log("<color=yellow>" + newPlayer.NickName + "님이 참가하셨습니다</color>");
-
-//}
-
-//public override void OnPlayerLeftRoom(Player otherPlayer)
-//{
-//    RoomRenewal();
-//    //ChatRPC("<color=yellow>" + otherPlayer.NickName + "님이 퇴장하셨습니다</color>");
-//    for (int i = 0; i < playerList.Length; i++)
-//    {
-//        if (playerList[i] == otherPlayer)
-//        {
-//            playerList[i] = null;
-//            break;
-//        }
-//    }
-//    Debug.Log("나 퇴장");
-//    //photonview.RPC("PlayerListSync", RpcTarget.All, );
-//    Debug.Log("<color=yellow>" + otherPlayer.NickName + "님이 퇴장하셨습니다</color>");
-
-//}
-
-
-
-//public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
-//{
-
-//        if (stream.IsWriting && PhotonNetwork.InRoom && PhotonNetwork.IsMasterClient)
-//        {
-//            stream.SendNext(playerList);
-//            Debug.Log("동기화 데이터 전송");
-//        }
-//        else
-//        {
-//            playerList = (Player[])stream.ReceiveNext();
-//            Debug.Log("동기화 데이터 수신");
-//        }
-
-//}
-
-
-
-//// UI에서 값 얻어오기.
-//byte maxPlayers = byte.Parse(m_dropdown_RoomMaxPlayers.options[m_dropdown_RoomMaxPlayers.value].text); // 드롭다운에서 값 얻어오기.
-//byte maxTime = byte.Parse(m_dropdown_MaxTime.options[m_dropdown_MaxTime.value].text);
-
-//// 방 옵션 설정한 것 그대로 HashTable 만들어준다. 이걸로 필터링하는 것이다.
-//ExitGames.Client.Photon.Hashtable customProperties = new ExitGames.Client.Photon.Hashtable() { { "maxTime", maxTime } };
-
-//// 방 입장할 때, 필터링할 옵션 넣어주기.
-//// maxPlayers는 자주 쓰이니까, 따로 변수로 빼준 듯하다.
-//PhotonNetwork.JoinRandomRoom(customProperties, maxPlayers);
-
-
-
-// 쓸지 안쓸지 모름
-
-//public void CreateRoom()
-//{
-
-//    PhotonNetwork.CreateRoom(roomInput.text, new RoomOptions { MaxPlayers = 2 });
-//}
-
-
-
-//public void JoinLobby() => PhotonNetwork.JoinLobby();
-//public override void OnJoinedLobby() => print("로비접속완료");
