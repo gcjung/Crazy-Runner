@@ -82,16 +82,18 @@ public class RoomListManager : MonoBehaviourPunCallbacks
     {
         for (int i = 0; i < photonRoomList.Count; i++)
         {
-            if (!photonRoomList[i].RemovedFromList)   // [닫힌방, 풀방, 숨긴방] 아니라면
+            if (!photonRoomList[i].RemovedFromList)             // [닫힌방, 숨긴방] 아니라면
             {
-                if (!roomList.Contains(photonRoomList[i])) roomList.Add(photonRoomList[i]); // 룸리스트에 없을시 방리스트에 추가하기
-                else roomList[roomList.IndexOf(photonRoomList[i])] = photonRoomList[i];     // 룸리스트에 있다면 다시 할당
+                if (!roomList.Contains(photonRoomList[i]))
+                    roomList.Add(photonRoomList[i]);            // 룸리스트에 없을시 방리스트에 추가하기
+                else
+                    roomList[roomList.IndexOf(photonRoomList[i])] = photonRoomList[i];  // 룸리스트에 있다면 다시 할당
             }
-            // [닫힌방, 풀방, 숨긴방]지우기
-            else if (roomList.IndexOf(photonRoomList[i]) != -1) roomList.RemoveAt(roomList.IndexOf(photonRoomList[i])); 
+            else if (roomList.IndexOf(photonRoomList[i]) != -1)
+                roomList.RemoveAt(roomList.IndexOf(photonRoomList[i]));                 // [닫힌방, 숨긴방]지우기
         }
 
-        RoomListRenewal();          // 방들의 정보들을 텍스트로 보여줌
+        RoomListRenewal();  // 방들의 정보들을 텍스트로 보여줌
     }
 
 }

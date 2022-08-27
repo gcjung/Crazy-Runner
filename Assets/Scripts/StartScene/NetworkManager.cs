@@ -6,8 +6,8 @@ using Photon.Pun;
 using Photon.Realtime;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 
-public enum USER_SlOT_STATE { CLOSE = -2, OPEN = -1 }
-public enum PLAYER_STATE { NOT_READY, MAINTENANCE, HOST, READY }
+public enum USER_SlOT_STATE { CLOSE = -2, OPEN }
+public enum PLAYER_STATE { NOT_READY, READY }
 public enum PLAYER_CLASS { RANDOM, }
 public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
 {
@@ -23,7 +23,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     public GameObject lobbyPanel;
     public GameObject roomSettingPanel;
     public InputField roomNameInput;
-    private byte maxRoomPlayer;
+    private int maxRoomPlayer;
     public Text myNicknameText;
     //public  Text         networkStateText;
 
@@ -49,13 +49,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     private Text kickConfirmMessage;
     private Player kickPlayer;
     private int readyPlayerNumber;
-
-    //테스트용
-    [Header("테스트용")]
-    public Text[] testUserPanel;
-    public Text testNowState;
-    public Text testroomName;
-    //테스트용
 
     private PhotonView photonview;
     private string gameVersion = "ver0.2";
@@ -94,6 +87,11 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
         readyPlayerNumber = 0;
         selectCharacterIndex = Random.Range(0, 27);
         sceneEffect = FindObjectOfType<SceneConvertEffect>();
+    }
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.L))
+            Debug.Log(PhotonNetwork.LocalPlayer.ActorNumber);
     }
 
     #region #START# 1. 서버연결 (disconnect)
@@ -153,26 +151,27 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     }
     public void MaxPersonSettingDropDown(int maxPersonNum)          // 드롭다운ui를 이용한 방최대인원 설정
     {
-        this.maxRoomPlayer = (byte)(maxPersonNum + 2);
-        Debug.Log("방 최대인원 : " + this.maxRoomPlayer);
+        maxRoomPlayer = (maxPersonNum + 2);
     }
+
     private string[] roomName = new string[4] { "무한 질주 대환장 게임", "오늘도 달린다!", "함께 달려요~", "레뒤 안하면 강퇴!!" };
     public void DecisionCreateRoomButton()                          // 방설정후 방생성 버튼 클릭시
     {
-        int max = maxRoomPlayer - 1;
+        int max = maxRoomPlayer;
+        int hostActorNumber = 1;
 
         RoomOptions roomOptions = new RoomOptions();                // 생성할 방의 옵션설정
-        roomOptions.MaxPlayers = maxRoomPlayer;                     // 방최대인원 설정
-        roomOptions.CustomRoomProperties = new Hashtable()          // 방 내 유저슬롯상태 및 유저정보를 갖는 해쉬테이블생성
+        roomOptions.MaxPlayers = (byte)maxRoomPlayer;               // 방최대인원 설정
+        roomOptions.CustomRoomProperties = new Hashtable()          // 방 내 유저슬롯에 슬롯상태(닫힘, 열림)와 유저정보를 갖는 해쉬테이블생성
         {
-            {"0", 1 },{"1",(int)USER_SlOT_STATE.OPEN},
-            {"2", 2 <= max ? (int)USER_SlOT_STATE.OPEN : (int)USER_SlOT_STATE.CLOSE},
-            {"3", 3 <= max ? (int)USER_SlOT_STATE.OPEN : (int)USER_SlOT_STATE.CLOSE},
-            {"4", 4 <= max ? (int)USER_SlOT_STATE.OPEN : (int)USER_SlOT_STATE.CLOSE}
+            {"0", hostActorNumber }, {"1", (int)USER_SlOT_STATE.OPEN},
+            {"2", 3 <= max ? (int)USER_SlOT_STATE.OPEN : (int)USER_SlOT_STATE.CLOSE},
+            {"3", 4 <= max ? (int)USER_SlOT_STATE.OPEN : (int)USER_SlOT_STATE.CLOSE},
+            {"4", 5 <= max ? (int)USER_SlOT_STATE.OPEN : (int)USER_SlOT_STATE.CLOSE}
         };
 
         if (roomNameInput.text.Equals(""))                          // 방이름이 공백일 때
-            PhotonNetwork.CreateRoom(roomName[(int)Random.Range(0, 4)], roomOptions);
+            PhotonNetwork.CreateRoom(roomName[Random.Range(0, 4)], roomOptions);
         else                                                        // 방이름이 공백이 아닐 때
             PhotonNetwork.CreateRoom(roomNameInput.text, roomOptions);
     }
@@ -186,26 +185,23 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
         //this.maxRoomPlayer = 2;
     }
     public override void OnCreateRoomFailed(short returnCode, string message) => print("방만들기실패");
-    #endregion
+    #endregion 방만들기
     public void JoinRandomRoom() => PhotonNetwork.JoinRandomRoom();
-
-    public override void OnJoinedRoom()         // 방을 성공적으로 참가하면 실행되는 콜백함수
+    public override void OnJoinedRoom()         // 방을 입장시 실행되는 콜백함수
     {
-        testNowState.text = "내 닉네임: " + PhotonNetwork.LocalPlayer.NickName;  //테스트
-        PhotonNetwork.AutomaticallySyncScene = true;                    // 방장이 씬을 이동하면 모두 같이 이동함
+        PhotonNetwork.AutomaticallySyncScene = true;    // 방장이 씬을 이동하면 모두 같이 이동함
 
-        ResetRoomSetting();                                             // 방만들기설정하다가 방들어왔을시 세팅을 초기화해줌
-        StartCoroutine(nameof(DelayOnJoinedRoom));
+        ResetRoomSetting();                             // 방 만들기설정 초기화해줌
+        StartCoroutine(nameof(DelayOnJoinedRoom));      // 유저 상태 표시를 해줌 (준비상태, 방장, 캐릭터)         
     }
-    private IEnumerator DelayOnJoinedRoom()     // 방입장시 캐릭간 정보동기화 한 후 함수 실행하도록 딜레이를 줌
+    private IEnumerator DelayOnJoinedRoom()     // 캐릭간 정보동기화 한 후 함수 실행하도록 딜레이를 줌
     {
         yield return new WaitForSeconds(0.05f);
-        testroomName.text = PhotonNetwork.CurrentRoom.Name;
-        ShowHostTag(PhotonNetwork.CurrentRoom.MasterClientId);
-        ShowReadyTag();
-        RoomRenewal();
-        ShowPlayerCharacter();
-
+        ShowHostTag(PhotonNetwork.CurrentRoom.MasterClientId);  // 방장 표시
+        ShowReadyTag();                         // 준비상태 표시
+        ShowPlayerCharacter();                  // 플레이어 캐릭터 표시
+        RoomRenewal();                          // 유저슬롯이 닫힘, 열림 표시
+        
         ShowPanel(roomPanel);
     }
     public override void OnJoinRoomFailed(short returnCode, string message) => print("방참가실패");
@@ -246,22 +242,22 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     {
         ClassSelectPanel.gameObject.SetActive(state);
     }
-    public void OnKickConfirmPanelButton(int slotIndex)                         // 강퇴확인 창
+    public void OnKickConfirmPanelButton(int slotIndex)                     // 강퇴확인 창
     {
         int playerActorNum = GetRoomProperties(slotIndex);
         if (PhotonNetwork.CurrentRoom.masterClientId != PhotonNetwork.LocalPlayer.ActorNumber ||    // 방장이 아닐때
-            playerActorNum == PhotonNetwork.CurrentRoom.masterClientId)        // (방장이) 방장을 강퇴하려고 할떄
+            playerActorNum == PhotonNetwork.CurrentRoom.masterClientId)     // (방장이) 방장을 강퇴하려고 할떄
         {
             return;
         }
-        else if (playerActorNum == (int)USER_SlOT_STATE.OPEN ||                  // 슬롯이 OPEN OR CLOSE이면 강퇴확인창 X
+        else if (playerActorNum == (int)USER_SlOT_STATE.OPEN ||             // 슬롯이 OPEN OR CLOSE이면 강퇴확인창 X
                 playerActorNum == (int)USER_SlOT_STATE.CLOSE)
         {
             return;
         }
         else
         {
-            for (int i = 0; i < PhotonNetwork.CurrentRoom.PlayerCount; i++)     // 플레이어액터넘버 비교 후 강퇴할 플레이어 찾기
+            for (int i = 0; i < PhotonNetwork.CurrentRoom.PlayerCount; i++) // 플레이어액터넘버 비교 후 강퇴할 플레이어 찾기
             {
                 if (playerActorNum == PhotonNetwork.PlayerList[i].ActorNumber)
                 {
@@ -284,22 +280,18 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     }
     public void ReadyButton()
     {
-        //Debug.Log("ReadyButton 실행");
         if (GetPlayerProperties("State") == (int)PLAYER_STATE.NOT_READY)
-        {
             SetPlayerProperties("State", (int)PLAYER_STATE.READY);
-            //Debug.Log("낫레디 -> \"레디\"");
-        }
         else if (GetPlayerProperties("State") == (int)PLAYER_STATE.READY)
-        {
             SetPlayerProperties("State", (int)PLAYER_STATE.NOT_READY);
-            //Debug.Log("레디 -> \"낫레디\"");
-        }
+    }
+
+    /*
         else    // 정비중일때 이 경우가 실행됨 (0525 지금은 쓸지 안쓸지 고민중임.) ->0526 생각해보니 쓸 수 없는기능임 준비버튼에선..
         {
             Debug.Log("난 정비중임ㅋ");
         }
-    }
+    */
     public void StartButton()
     {
         int currentRoomPlayerCount = PhotonNetwork.CurrentRoom.PlayerCount;
@@ -344,7 +336,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     #region #START# 3-3. 대기방 동기화 
 
     #region 포톤 콜백함수
-    public override void OnPlayerEnteredRoom(Player newPlayer)              // 방에 유저가 들어왔을 때 실행되는 콜백함수
+    public override void OnPlayerEnteredRoom(Player newPlayer)  // 방에 다른 유저가 들어왔을 때 실행되는 콜백함수
     {
         chatManager.ChatRPC("<color=yellow>" + newPlayer.NickName + " 님이 참가하셨습니다</color>");
 
@@ -355,14 +347,16 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
                 if (GetRoomProperties(i) == (int)USER_SlOT_STATE.OPEN)
                 {
                     SetRoomProperties(i, newPlayer.ActorNumber);
-                    Debug.Log("<color=yellow>" + i + "번째 칸 " + newPlayer.NickName + " 님이 참가하셨습니다</color>");
+                    //Debug.Log("<color=yellow>" + i + "번째 칸 " + newPlayer.NickName + " 님이 참가하셨습니다</color>");
 
                     break;
                 }
             }
         }
     }
-    public override void OnPlayerLeftRoom(Player otherPlayer)               // 방에 유저가 나갔을 때 실행되는 콜백함수
+
+
+    public override void OnPlayerLeftRoom(Player otherPlayer)   // 방에 다른 유저가 나갔을 때 실행되는 콜백함수
     {
         chatManager.ChatRPC("<color=yellow>" + otherPlayer.NickName + " 님이 퇴장하셨습니다</color>");
 
@@ -379,9 +373,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
                 }
             }
         }
-
     }
-    public override void OnLeftRoom()                               // 방에서 나가면(강퇴포함) 실행됨
+
+    public override void OnLeftRoom()               // 방에서 본인이 나가면(강퇴포함) 실행됨
     {
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
         {
@@ -393,33 +387,32 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
         }
 
         chatManager.ChatTextClear();
-        startButton.gameObject.SetActive(false);        // 방에서 나갔으니 스타트버튼 off
+        startButton.gameObject.SetActive(false);    // 방에서 나갔으니 스타트버튼 off
     }
-    public override void OnRoomPropertiesUpdate(Hashtable propertiesThatChanged)    // 룸프로퍼티가 변경시 실행 (룸프로퍼티는 입력에 딜레이가 있어 콜백함수를 이용해 방리뉴얼해줌)
-    {                                                                               // 슬롯닫고 열때, Player이 출입시 실행됨
+    public override void OnRoomPropertiesUpdate(Hashtable propertiesThatChanged)    // 룸프로퍼티가 변경시 실행                        (룸프로퍼티는 입력에 딜레이가 있어 콜백함수를 이용해 방리뉴얼해줌)
+    {                                                                               // 슬롯닫고 열때, Player이 입퇴장시 실행됨
         foreach (object slotNumber in propertiesThatChanged.Keys)
         {
-            if (slotNumber.GetType() == typeof(string))                             // 키 타입이 스트링일때만 동작 (룸맥스인원 변경시 실행안되도록)
+            if (slotNumber.GetType() == typeof(string))     // 슬롯정보 변경 시에만 실행 ('0' ~ '4'),                              키 타입이 스트링일때만 동작 (룸맥스인원 변경시 실행안되도록)
             {
-                if ((string)slotNumber == "curScn")     // PhotonNetwork.AutomaticallySyncScene 설정에 대한 것일때 넘기기
-                    return;
-                //Debug.Log((string)slotNumber + ", " + (int)propertiesThatChanged[(string)slotNumber]);
-                RoomRenewal((string)slotNumber, (int)propertiesThatChanged[(string)slotNumber]);
+                if ((string)slotNumber == "curScn") return; // PhotonNetwork.AutomaticallySyncScene때문에 생김.
+
+                ShowPlayerCharacter((string)slotNumber);    // 플레이어 캐릭터 표시
+                CountReadyPlayer();                         // 준비중인 플레이어 수 확인
+                RoomRenewal((string)slotNumber, (int)propertiesThatChanged[(string)slotNumber]); // X표시, 준비표시, 닉네임표시
             }
         }
-        ShowPlayerCharacter();
-        CountReadyPlayer();
     }
+
     public override void OnPlayerPropertiesUpdate(Player targetPlayer, Hashtable changedProps)  // 룸에 있는 플레이어프로퍼티 변경시 실행 
-    {                                                                                           // 유저의 준비, 준비해제, 정비
+    {                                                                                           // 유저의 준비상태, 캐릭터변경
         foreach (object key in changedProps.Keys)
         {
-            //Debug.Log("key : " + (string)key + ", state : " + (int)GetPlayerProperties((string)key, targetPlayer));
-            if ((string)key == "State")
+            if ((string)key == "State")             // 플레이어의 준비상태
             {
                 ShowReadyTag(targetPlayer.ActorNumber, (int)GetPlayerProperties((string)key, targetPlayer));
             }
-            else if ((string)key == "Character")
+            else if ((string)key == "Character")    // 플레이어의 외형
             {
                 ShowPlayerCharacter(targetPlayer.ActorNumber, (int)GetPlayerProperties((string)key, targetPlayer));
             }
@@ -427,6 +420,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
 
         CountReadyPlayer();
     }
+    //Debug.Log("key : " + (string)key + ", state : " + (int)GetPlayerProperties((string)key, targetPlayer));
+
     public override void OnMasterClientSwitched(Player newMasterClient)     // 방장 변경시 실행
     {
         if (GetPlayerProperties("State", newMasterClient) == (int)PLAYER_STATE.READY)
@@ -441,7 +436,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     #endregion 포톤콜백함수
 
     #region 플레이어들 현재 정보
-    private void CountReadyPlayer()
+    private void CountReadyPlayer()         // 게임준비 중인 인원 파악 (방장만 실행됨) 
     {
         if (PhotonNetwork.IsMasterClient)
         {
@@ -460,26 +455,22 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     {
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
         {
-            testUserPanel[i].text = i.ToString() + " : " + GetRoomProperties(i).ToString(); // 테스트용
-
             int slotState = GetRoomProperties(i);
-            // Debug.Log("RoomRenewal, " + i.ToString() + "번째, 액터넘버 : " + slotState);
-            if (slotState == (int)USER_SlOT_STATE.CLOSE)                    // 유저슬롯이 닫혀있으면 
+
+            if (slotState == (int)USER_SlOT_STATE.CLOSE)            // 유저슬롯이 닫혀있으면 
             {
                 userNickname[i].text = "";
-                //readyTag[i].gameObject.SetActive(false);                    // 레디태그 OFF
-                closeSlot[i].gameObject.SetActive(true);                    // X표시 ON
+                closeSlot[i].gameObject.SetActive(true);            // X표시 ON
             }
-            else if (slotState == (int)USER_SlOT_STATE.OPEN)                // 유저슬롯이 열려있으면
+            else if (slotState == (int)USER_SlOT_STATE.OPEN)        // 유저슬롯이 열려있으면
             {
                 userNickname[i].text = "";
-                //readyTag[i].gameObject.SetActive(false);                    // 레디태그 OFF
-                closeSlot[i].gameObject.SetActive(false);                    // X표시 ON
+                closeSlot[i].gameObject.SetActive(false);           // X표시 OFF
 
             }
-            else                                                            // 유저슬롯에 유저가 있다면
+            else                                                    // 유저슬롯에 유저가 있다면
             {
-                closeSlot[i].gameObject.SetActive(false);                   // X표시 OFF
+                closeSlot[i].gameObject.SetActive(false);           // X표시 OFF
                 for (int j = 0; j < PhotonNetwork.CurrentRoom.PlayerCount; j++)     // 유저슬롯과 유저의 ActorNum를 비교하여 같으면 그 닉네임을 넣음
                 {
                     if (slotState == PhotonNetwork.PlayerList[j].ActorNumber)
@@ -494,7 +485,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     private void RoomRenewal(string slotNumString, int slotState)   // 방의 슬롯상태가 변경될때마다 실행
     {
         int slotNum = int.Parse(slotNumString);
-        testUserPanel[slotNum].text = slotNum.ToString() + " : " + GetRoomProperties(slotNum).ToString(); // 테스트용
 
         if (slotState == (int)USER_SlOT_STATE.CLOSE)                // 유저슬롯이 닫혀있으면 
         {
@@ -571,7 +561,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
             }
         }
     }
-    private void ShowReadyTag(int playerActNumber, int playerState)             // 유저의 상태가 변경될때마다 실행 
+    private void ShowReadyTag(int playerActNumber, int playerState)    // 유저의 상태가 변경될때마다 실행 
     {
         //Debug.Log("ShowReadyTag 실행");
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
@@ -591,13 +581,12 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
             }
         }
     }
-    private void ShowPlayerCharacter()                          // 방 최초입장시, 방의 슬롯정보가 바뀌었을 때
+    private void ShowPlayerCharacter()          // 방 최초입장시 1회만 실행됨
     {
-        //print("ShowPlayerCharacter() 최초 실행");
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
         {
             int userActorNumber = GetRoomProperties(i);
-            //Debug.Log("character, " +i.ToString() + "번째, 액터넘버 : " + userActorNumber);
+
             if (userActorNumber == (int)USER_SlOT_STATE.CLOSE || userActorNumber == (int)USER_SlOT_STATE.OPEN)
             {
                 if (playerCharacters[i] != null)
@@ -606,29 +595,64 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
                     Destroy(playerCharacters[i]);
                     playerCharacters[i] = null;
                 }
-                continue;
             }
+            else
+            {
+                for (int j = 0; j < PhotonNetwork.CurrentRoom.PlayerCount; j++)
+                {
+                    if (userActorNumber == PhotonNetwork.PlayerList[j].ActorNumber)
+                    {
+                        if (playerCharacters[i] != null)
+                        {
+                            Destroy(playerCharacters[i]);
+                            playerCharacters[i] = null;
+                        }
+                        int userCharacter = GetPlayerProperties("Character", PhotonNetwork.PlayerList[j]);
+                        //Debug.Log(i.ToString() + "번째, 캐릭터 인덱스 : " + GetPlayerProperties("Character", PhotonNetwork.PlayerList[j]));
+                        playerCharacters[i] = Instantiate(characterPrefab[userCharacter], new Vector3(-20 + (2 * i), 0, -5), Quaternion.Euler(0, 180, 0));
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    private void ShowPlayerCharacter(string slotNumberString)   // 방의 슬롯정보가 바뀌었을 때 실행됨 (룸프로퍼티)
+    {
+        int slotNumber = int.Parse(slotNumberString);
+        int userActorNumber = GetRoomProperties(slotNumber);
 
+        if (userActorNumber == (int)USER_SlOT_STATE.CLOSE || userActorNumber == (int)USER_SlOT_STATE.OPEN)
+        {
+            if (playerCharacters[slotNumber] != null)
+            {
+                Destroy(playerCharacters[slotNumber]);
+                playerCharacters[slotNumber] = null;
+            }
+        }
+        else
+        {
             for (int j = 0; j < PhotonNetwork.CurrentRoom.PlayerCount; j++)
             {
                 if (userActorNumber == PhotonNetwork.PlayerList[j].ActorNumber)
                 {
-                    if (playerCharacters[i] != null)
+                    if (playerCharacters[slotNumber] != null)
                     {
-                        Destroy(playerCharacters[i]);
-                        playerCharacters[i] = null;
+                        Destroy(playerCharacters[slotNumber]);
+                        playerCharacters[slotNumber] = null;
                     }
+
                     int userCharacter = GetPlayerProperties("Character", PhotonNetwork.PlayerList[j]);
-                    //Debug.Log(i.ToString() + "번째, 캐릭터 인덱스 : " + GetPlayerProperties("Character", PhotonNetwork.PlayerList[j]));
-                    playerCharacters[i] = Instantiate(characterPrefab[userCharacter], new Vector3(-20 + (2 * i), 0, -5), Quaternion.Euler(0, 180, 0));
+                    playerCharacters[slotNumber] = Instantiate(characterPrefab[userCharacter], new Vector3(-20 + (2 * slotNumber), 0, -5), Quaternion.Euler(0, 180, 0));
+
+                    return;
                 }
             }
         }
-        
-    }
-    private void ShowPlayerCharacter(int playerActNumber, int selectCharacterIndex)  // 플레이어가 캐릭터를 바꿧을때 바뀜              
-    {
 
+    }
+
+    private void ShowPlayerCharacter(int playerActNumber, int selectCharacterIndex)  // 플레이어가 캐릭터를 바꿧을때 실행됨 (플레이어 프로퍼티)       
+    {
         //Debug.Log("ShowReadyTag 지속실행");
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
         {
@@ -638,6 +662,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
                 Destroy(playerCharacters[i]);
 
                 playerCharacters[i] = Instantiate(characterPrefab[selectCharacterIndex], new Vector3(-20 + (2 * i), 0, -5), Quaternion.Euler(0, 180, 0));
+                return;
             }
         }
 
@@ -686,3 +711,42 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
 
 
 }
+
+
+/* 08/27 수정 전
+    private void ShowPlayerCharacter()                  // 방 최초입장시, 방의 슬롯정보가 바뀌었을 때
+    {
+        for (int i = 0; i < MAX_PLAYER_NUM; i++)
+        {
+            int userActorNumber = GetRoomProperties(i);
+
+            if (userActorNumber == (int)USER_SlOT_STATE.CLOSE || userActorNumber == (int)USER_SlOT_STATE.OPEN)
+            {
+                if (playerCharacters[i] != null)
+                {
+                    //Debug.Log("playerCharacters[i] : " + playerCharacters[i].name);
+                    Destroy(playerCharacters[i]);
+                    playerCharacters[i] = null;
+                }
+                continue;
+            }
+
+            for (int j = 0; j < PhotonNetwork.CurrentRoom.PlayerCount; j++)
+            {
+                if (userActorNumber == PhotonNetwork.PlayerList[j].ActorNumber)
+                {
+                    if (playerCharacters[i] != null)
+                    {
+                        Destroy(playerCharacters[i]);
+                        playerCharacters[i] = null;
+                    }
+                    int userCharacter = GetPlayerProperties("Character", PhotonNetwork.PlayerList[j]);
+                    //Debug.Log(i.ToString() + "번째, 캐릭터 인덱스 : " + GetPlayerProperties("Character", PhotonNetwork.PlayerList[j]));
+                    playerCharacters[i] = Instantiate(characterPrefab[userCharacter], new Vector3(-20 + (2 * i), 0, -5), Quaternion.Euler(0, 180, 0));
+                }
+            }
+        }
+        
+    }
+
+ */

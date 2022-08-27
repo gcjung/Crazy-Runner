@@ -13,45 +13,48 @@ public class ChatManager : MonoBehaviour
 
     public Text chatTextPrefab;
     private PhotonView photonView;
-    
+    private const int maxChatContentSize = 303;
+
     private void Start()
     {
         photonView = GetComponent<PhotonView>();
-        chatInput.onValueChanged.AddListener(delegate { MaxStringCheck(); });
+        chatInput.characterLimit = 70;
+        chatInput.onValueChanged.AddListener(delegate { CheckMaxString();});
     }
+    public void CheckMaxString()
+    {
+        if (chatInput.text.Length >= 70)
+        {
+            ChatRPC("<color=red>70자를 초과하여 더 이상 글자를 입력할 수 없습니다.</color>");
+        }
+    }
+
+    //print("<color=red>70자를 초과하여 더 이상 글자를 입력할 수 없습니다.</color>");
+
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Return))
         {
-            if ((chatInput.text != ""))
+            if (chatInput.text != "")
             {
                 SendChat();
             }
             chatInput.ActivateInputField();
         }
     }
-    public void MaxStringCheck()
-    {
-        if (chatInput.text.Length >= 70)
-        {
-            ChatRPC("<color=red>70자를 초과하여 더 이상 글자를 입력할 수 없습니다.</color>");
-            //print("<color=red>70자를 초과하여 더 이상 글자를 입력할 수 없습니다.</color>");
-        }
-    }
     public void SendChat()
     {
-        photonView.RPC("ChatRPC", RpcTarget.All, PhotonNetwork.NickName + " : " + chatInput.text);
+        photonView.RPC(nameof(ChatRPC), RpcTarget.All, PhotonNetwork.NickName + " : " + chatInput.text);
         chatInput.text = "";
     }
 
     [PunRPC] // RPC는 플레이어가 속해있는 방 모든 인원에게 전달한다
     public void ChatRPC(string msg)
     {
-        int maxChatContentSize = 303;
-        if (chatContent.sizeDelta.y >= maxChatContentSize)          // 채팅창의크기가 일정 크기 이상이면
-            chatContent.pivot = new Vector2(0, 0);                  // 채팅을 치면 아래서부터 올라가도록 해줌
+        if (chatContent.sizeDelta.y >= maxChatContentSize)  // 채팅창의 크기가 일정 크기 이상이면
+            chatContent.pivot = new Vector2(0, 0);          // 채팅을 치면 아래서부터 올라가도록 해줌
 
-        msg = msg.Replace(' ', '\u00A0');
+        msg = msg.Replace(' ', '\u00A0');                   // 빈칸을 줄바꿈안하는 빈칸으로 바꿔준다.
         
         bool isInput = false;
         for (int i = 0; i < chatTextList.Count; i++)
@@ -66,9 +69,7 @@ public class ChatManager : MonoBehaviour
         {
             if (chatTextList.Count < 30)                // 30개의 채팅 텍스트까지 생성하기
             {
-                //Text temp;
                 chatTextList.Add(Instantiate(chatTextPrefab, chatContent));
-                //temp.name = "text" + (chatTextList.Count - 1).ToString();
                 chatTextList[chatTextList.Count - 1].text = msg;
             }
             else                                        // 한 칸씩 채팅 위로 올리기
