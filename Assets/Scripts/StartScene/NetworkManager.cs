@@ -35,6 +35,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     private int selectCharacterIndex;
     private int selectClassIndex;
 
+    private Text roomName;
     private Image CharacterSelectPanel;
     private Image ClassSelectPanel;
     public ChatManager chatManager;
@@ -79,6 +80,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
         }
 
         startButton = roomPanel.transform.GetChild(5).GetComponent<Button>();
+        roomName = roomPanel.transform.GetChild(6).GetChild(0).GetComponent<Text>();
         kickConfirmPanel = roomPanel.transform.GetChild(9).GetComponent<Image>();
         kickConfirmMessage = kickConfirmPanel.transform.GetChild(1).GetComponent<Text>();
         CharacterSelectPanel = roomPanel.transform.GetChild(10).GetComponent<Image>();
@@ -154,7 +156,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
         maxRoomPlayer = (maxPersonNum + 2);
     }
 
-    private string[] roomName = new string[4] { "무한 질주 대환장 게임", "오늘도 달린다!", "함께 달려요~", "레뒤 안하면 강퇴!!" };
+    private string[] randomRoomName = new string[4] { "무한 질주 대환장 게임", "오늘도 달린다!", "함께 달려요~", "레뒤 안하면 강퇴!!" };
     public void DecisionCreateRoomButton()                          // 방설정후 방생성 버튼 클릭시
     {
         int max = maxRoomPlayer;
@@ -171,7 +173,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
         };
 
         if (roomNameInput.text.Equals(""))                          // 방이름이 공백일 때
-            PhotonNetwork.CreateRoom(roomName[Random.Range(0, 4)], roomOptions);
+            PhotonNetwork.CreateRoom(randomRoomName[Random.Range(0, 4)], roomOptions);
         else                                                        // 방이름이 공백이 아닐 때
             PhotonNetwork.CreateRoom(roomNameInput.text, roomOptions);
     }
@@ -197,6 +199,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     private IEnumerator DelayOnJoinedRoom()     // 캐릭간 정보동기화 한 후 함수 실행하도록 딜레이를 줌
     {
         yield return new WaitForSeconds(0.05f);
+        roomName.text = PhotonNetwork.CurrentRoom.Name;
         ShowHostTag(PhotonNetwork.CurrentRoom.MasterClientId);  // 방장 표시
         ShowReadyTag();                         // 준비상태 표시
         ShowPlayerCharacter();                  // 플레이어 캐릭터 표시
@@ -583,6 +586,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     }
     private void ShowPlayerCharacter()          // 방 최초입장시 1회만 실행됨
     {
+
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
         {
             int userActorNumber = GetRoomProperties(i);
@@ -608,9 +612,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
                             playerCharacters[i] = null;
                         }
                         int userCharacter = GetPlayerProperties("Character", PhotonNetwork.PlayerList[j]);
-                        //Debug.Log(i.ToString() + "번째, 캐릭터 인덱스 : " + GetPlayerProperties("Character", PhotonNetwork.PlayerList[j]));
+                        Debug.Log(i.ToString() + "번째, 캐릭터 인덱스 : " + GetPlayerProperties("Character", PhotonNetwork.PlayerList[j]));
                         playerCharacters[i] = Instantiate(characterPrefab[userCharacter], new Vector3(-20 + (2 * i), 0, -5), Quaternion.Euler(0, 180, 0));
-                        return;
                     }
                 }
             }
@@ -643,7 +646,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
 
                     int userCharacter = GetPlayerProperties("Character", PhotonNetwork.PlayerList[j]);
                     playerCharacters[slotNumber] = Instantiate(characterPrefab[userCharacter], new Vector3(-20 + (2 * slotNumber), 0, -5), Quaternion.Euler(0, 180, 0));
-
                     return;
                 }
             }
