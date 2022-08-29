@@ -49,7 +49,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     private Image kickConfirmPanel;
     private Text kickConfirmMessage;
     private Player kickPlayer;
-    private int readyPlayerNumber;
+    //private int readyPlayerNumber;
 
     private PhotonView photonview;
     private string gameVersion = "ver0.2";
@@ -86,7 +86,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
         CharacterSelectPanel = roomPanel.transform.GetChild(10).GetComponent<Image>();
         ClassSelectPanel = roomPanel.transform.GetChild(11).GetComponent<Image>();
 
-        readyPlayerNumber = 0;
         selectCharacterIndex = Random.Range(0, 27);
         sceneEffect = FindObjectOfType<SceneConvertEffect>();
     }
@@ -299,10 +298,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     {
         int currentRoomPlayerCount = PhotonNetwork.CurrentRoom.PlayerCount;
 
-        if (readyPlayerNumber == currentRoomPlayerCount - 1)  // 방장 제외 모두 레디한 상태라면
+        if (CountReadyPlayer() == currentRoomPlayerCount - 1)  // 방장 제외 모두 레디한 상태라면
         {
             Debug.Log("게임을 시작합니다");
-
             //chatManager.ClearChat();
             //startButton.gameObject.SetActive(false);
 
@@ -401,7 +399,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
                 if ((string)slotNumber == "curScn") return; // PhotonNetwork.AutomaticallySyncScene때문에 생김.
 
                 ShowPlayerCharacter((string)slotNumber);    // 플레이어 캐릭터 표시
-                CountReadyPlayer();                         // 준비중인 플레이어 수 확인
                 RoomRenewal((string)slotNumber, (int)propertiesThatChanged[(string)slotNumber]); // X표시, 준비표시, 닉네임표시
             }
         }
@@ -420,8 +417,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
                 ShowPlayerCharacter(targetPlayer.ActorNumber, (int)GetPlayerProperties((string)key, targetPlayer));
             }
         }
-
-        CountReadyPlayer();
     }
     //Debug.Log("key : " + (string)key + ", state : " + (int)GetPlayerProperties((string)key, targetPlayer));
 
@@ -439,11 +434,11 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
     #endregion 포톤콜백함수
 
     #region 플레이어들 현재 정보
-    private void CountReadyPlayer()         // 게임준비 중인 인원 파악 (방장만 실행됨) 
+    private int CountReadyPlayer()         // 게임준비 중인 인원 파악 (방장만 실행됨) 
     {
+        int readyPlayerNumber = 0;
         if (PhotonNetwork.IsMasterClient)
         {
-            readyPlayerNumber = 0;
             for (int i = 0; i < PhotonNetwork.CurrentRoom.PlayerCount; i++)
             {
                 if (GetPlayerProperties("State", PhotonNetwork.PlayerList[i]) == (int)PLAYER_STATE.READY)
@@ -452,9 +447,25 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
                 }
             }
         }
-
+        return readyPlayerNumber;
     }
-    private void RoomRenewal()                      // 방 최초입장시 1회 실행
+    private void ShowHostTag(int hostActorNumber)   // hostTag를 방장한테만 띄어줌
+    {
+        for (int i = 0; i < MAX_PLAYER_NUM; i++)
+        {
+            int userActorNumber = GetRoomProperties(i);
+            if (hostActorNumber == userActorNumber)     // 유저가 방장일경우 HostTag ON
+            {
+                hostTag[i].gameObject.SetActive(true);
+            }
+            else
+            {
+                hostTag[i].gameObject.SetActive(false);
+            }
+        }
+    }
+
+    private void RoomRenewal()      // 방 최초입장시 1회 실행
     {
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
         {
@@ -485,7 +496,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
             }
         }
     }
-    private void RoomRenewal(string slotNumString, int slotState)   // 방의 슬롯상태가 변경될때마다 실행
+    private void RoomRenewal(string slotNumString, int slotState)   // 룸 프로퍼티 변경시 실행
     {
         int slotNum = int.Parse(slotNumString);
 
@@ -513,22 +524,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
             }
         }
     }
-    private void ShowHostTag(int hostActorNumber)       // hostTag를 방장한테만 띄어줌
-    {
-        for (int i = 0; i < MAX_PLAYER_NUM; i++)
-        {
-            int userActorNumber = GetRoomProperties(i);
-            if (hostActorNumber == userActorNumber)     // 유저가 방장일경우 HostTag ON
-            {
-                hostTag[i].gameObject.SetActive(true);
-            }
-            else
-            {
-                hostTag[i].gameObject.SetActive(false);
-            }
-        }
-    }
-    private void ShowReadyTag()                         // 방 최초입장시 1회 실행 
+
+    private void ShowReadyTag()     // 방 최초입장시 1회 실행 
     {
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
         {
@@ -564,27 +561,29 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
             }
         }
     }
-    private void ShowReadyTag(int playerActNumber, int playerState)    // 유저의 상태가 변경될때마다 실행 
+    private void ShowReadyTag(int playerActNumber, int playerState) // 플레이어 프로퍼티 실행 
     {
-        //Debug.Log("ShowReadyTag 실행");
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
         {
-            int userActorNumber = GetRoomProperties(i);
+            int userActorNumber = GetRoomProperties(i);             
 
-            if (userActorNumber == playerActNumber)
+            if (userActorNumber == playerActNumber)                 // 유저슬롯의 유저 정보를 비교
             {
-                if (playerState == (int)PLAYER_STATE.NOT_READY)
+                if (playerState == (int)PLAYER_STATE.NOT_READY)     
                 {
-                    readyTag[i].gameObject.SetActive(false);
+                    readyTag[i].gameObject.SetActive(false);        // 준비 상태가 아니면 레디표시 끄기  
                 }
                 else if (playerState == (int)PLAYER_STATE.READY)
                 {
-                    readyTag[i].gameObject.SetActive(true);
+                    readyTag[i].gameObject.SetActive(true);         // 준비 상태가 레디표시 켜기
                 }
+
+                return;
             }
         }
     }
-    private void ShowPlayerCharacter()          // 방 최초입장시 1회만 실행됨
+
+    private void ShowPlayerCharacter()      // 방 최초입장시 1회 실행
     {
 
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
@@ -619,7 +618,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
             }
         }
     }
-    private void ShowPlayerCharacter(string slotNumberString)   // 방의 슬롯정보가 바뀌었을 때 실행됨 (룸프로퍼티)
+    private void ShowPlayerCharacter(string slotNumberString)   // 룸프로퍼티 변경시 실행
     {
         int slotNumber = int.Parse(slotNumberString);
         int userActorNumber = GetRoomProperties(slotNumber);
@@ -652,8 +651,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks//, IOnEventCallback
         }
 
     }
-
-    private void ShowPlayerCharacter(int playerActNumber, int selectCharacterIndex)  // 플레이어가 캐릭터를 바꿧을때 실행됨 (플레이어 프로퍼티)       
+    private void ShowPlayerCharacter(int playerActNumber, int selectCharacterIndex)  // 플레이어 프로퍼티 변경시 실행       
     {
         //Debug.Log("ShowReadyTag 지속실행");
         for (int i = 0; i < MAX_PLAYER_NUM; i++)
